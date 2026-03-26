@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Libertario Coffee Roasters — Dashboard Q1 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg:       #f7f5f0;
+    --surface:  #ffffff;
+    --surface2: #f0ede6;
+    --border:   rgba(0,0,0,0.09);
+    --text:     #1a1814;
+    --muted:    #6b6860;
+    --accent:   #0f2a4a;
+    --accent2:  #4a90d9;
+    --green:    #2d7a4f;
+    --red:      #c0392b;
+    --blue:     #2563aa;
+    --C0: #2d7a4f; --C1: #c8841a; --C2: #2563aa; --C3: #8b3a8b;
+    --C4: #c0392b; --C5: #1a7a7a; --C6: #8b6914;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+
+  /* ── layout ── */
+  .shell { display: flex; min-height: 100vh; }
+  .sidebar { width: 220px; background: var(--accent); color: #fff; flex-shrink: 0; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 100; }
+  .main { margin-left: 220px; padding: 28px 32px; min-height: 100vh; }
+  @media(max-width:768px){ .sidebar{width:100%;height:auto;position:relative;flex-direction:row;flex-wrap:wrap;} .main{margin-left:0;padding:16px;} }
+
+  /* ── sidebar ── */
+  .logo { padding: 24px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.12); }
+  .logo h2 { font-size: 15px; font-weight: 600; letter-spacing: .3px; }
+  .logo p  { font-size: 11px; opacity: .65; margin-top: 3px; }
+  .nav { padding: 12px 0; flex: 1; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; font-size: 13px; cursor: pointer; color: rgba(255,255,255,.72); transition: all .15s; border-left: 3px solid transparent; }
+  .nav-item:hover { background: rgba(255,255,255,.08); color: #fff; }
+  .nav-item.active { background: rgba(255,255,255,.13); color: #fff; border-left-color: var(--accent2); }
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+  .sidebar-footer { padding: 16px 20px; font-size: 11px; opacity: .45; border-top: 1px solid rgba(255,255,255,.1); }
+
+  /* ── sections ── */
+  .section { display: none; }
+  .section.active { display: block; }
+  .page-title { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+  .page-sub   { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+  /* ── cards ── */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 12px; margin-bottom: 24px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .card .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .card .val { font-size: 24px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+  .card .sub { font-size: 12px; color: var(--muted); }
+  .bdg { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; margin-top: 6px; }
+  .bdg.up   { background: #d4edda; color: #155724; }
+  .bdg.dn   { background: #f8d7da; color: #721c24; }
+  .bdg.neu  { background: #d1ecf1; color: #0c5460; }
+  .bdg.warn { background: #fff3cd; color: #856404; }
+
+  /* ── box ── */
+  .box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .bt  { font-size: 14px; font-weight: 600; margin-bottom: 14px; color: var(--text); }
+  .btsub { font-size: 12px; color: var(--muted); margin-top: -10px; margin-bottom: 14px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media(max-width:640px){ .row2,.row3{ grid-template-columns:1fr; } }
+
+  /* ── chart wrapper ── */
+  .cw { position: relative; width: 100%; }
+
+  /* ── bar rows ── */
+  .br  { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+  .br:last-child { border-bottom: none; }
+  .bn  { font-size: 12px; min-width: 130px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bb  { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+  .bf  { height: 100%; border-radius: 4px; }
+  .bv  { font-size: 11px; color: var(--muted); min-width: 55px; text-align: right; }
+
+  /* ── legend ── */
+  .lg  { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
+
+  /* ── table top10 ── */
+  .t10 { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .t10 th { font-size: 11px; font-weight: 600; color: var(--muted); text-align: left; padding: 0 10px 10px 0; border-bottom: 2px solid var(--border); text-transform: uppercase; letter-spacing: .4px; }
+  .t10 th.r,.t10 td.r { text-align: right; }
+  .t10 td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .t10 tr:last-child td { border-bottom: none; }
+  .t10 td.r { font-size: 11px; color: var(--muted); }
+  .t10 tr:hover td { background: var(--surface2); }
+  .pill { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 20px; font-weight: 600; margin-left: 5px; }
+  .sp { display: flex; align-items: flex-end; gap: 2px; height: 24px; }
+  .sb { width: 9px; border-radius: 2px 2px 0 0; }
+
+  /* ── progress bar ── */
+  .pb  { width: 100%; height: 14px; background: var(--surface2); border-radius: 7px; overflow: hidden; margin: 8px 0 5px; }
+  .pf  { height: 100%; border-radius: 7px; transition: width .5s ease; }
+
+  /* ── presupuesto input ── */
+  .ppto-input { width: 200px; padding: 9px 12px; font-size: 15px; border: 1.5px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); outline: none; transition: border .15s; }
+  .ppto-input:focus { border-color: var(--accent); }
+  .ppto-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 12px; margin-bottom: 16px; }
+  .pc  { background: var(--surface2); border-radius: var(--radius); padding: 14px 16px; }
+  .pc .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+  .pc .val { font-size: 20px; font-weight: 700; }
+  .pc .sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  /* ── monthly trend ── */
+  .month-chip { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; background: var(--surface2); color: var(--muted); margin: 2px; cursor: default; }
+  .month-chip.hi { background: var(--accent); color: #fff; }
+
+  /* ── cat buttons ── */
+  .cat-btn { padding: 8px 14px; font-size: 12px; font-weight: 600; border: none; border-radius: 20px; cursor: pointer; color: #fff; opacity: .55; transition: opacity .15s, transform .1s; }
+  .cat-btn:hover { opacity: .8; }
+  .cat-btn.active { opacity: 1; transform: scale(1.05); box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+  /* ── scrollbar ── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ── SIDEBAR ── -->
+<nav class="sidebar">
+  <div class="logo">
+    <h2>☕ Libertario</h2>
+    <p>Dashboard Q1 2026</p>
+  </div>
+  <div class="nav">
+    <div class="nav-item active" onclick="go('resumen',this)"><span class="nav-icon">◈</span> Resumen</div>
+    <div class="nav-item" onclick="go('ppto',this)"><span class="nav-icon">◎</span> Presupuesto</div>
+    <div class="nav-item" onclick="go('menu',this)"><span class="nav-icon">↔</span> Menú 2025 vs 2026</div>
+    <div class="nav-item" onclick="go('nuevos',this)"><span class="nav-icon">✦</span> Productos nuevos</div>
+    <div class="nav-item" onclick="go('cats',this)"><span class="nav-icon">▤</span> Categorías</div>
+    <div class="nav-item" onclick="go('tiendas',this)"><span class="nav-icon">⊞</span> Tiendas</div>
+    <div class="nav-item" onclick="go('top10',this)"><span class="nav-icon">★</span> Top 10</div>
+    <div class="nav-item" onclick="go('tend',this)"><span class="nav-icon">∿</span> Tendencia</div>
+    <div class="nav-item" onclick="go('topcat',this)"><span class="nav-icon">⊛</span> Top por categoría</div>
+  </div>
+  <div class="sidebar-footer">Datos: Q1 2026 · 11 PDV</div>
+</nav>
+
+<!-- ── MAIN ── -->
+<main class="main">
+
+<!-- RESUMEN -->
+<div class="section active" id="tab-resumen">
+  <div class="page-title">Resumen general</div>
+  <div class="page-sub">Q1 2026 · Enero – Marzo · 7 categorías · Solo productos categorizados</div>
+  <div class="cards">
+    <div class="card"><div class="lbl">Ventas categorizadas Q1</div><div class="val">$1.237B</div><div class="sub">7 categorías · 63K unid</div><span class="bdg neu">45 productos</span></div>
+    <div class="card"><div class="lbl">Categoría #1</div><div class="val" style="font-size:18px">Huevos</div><div class="sub">$275.3M · 11,711 unid</div><span class="bdg up">↑ top</span></div>
+    <div class="card"><div class="lbl">Categoría #2</div><div class="val" style="font-size:18px">Past. dulce</div><div class="sub">$269.9M · 18,663 unid</div></div>
+    <div class="card"><div class="lbl">Mayor volumen</div><div class="val" style="font-size:18px">Past. dulce</div><div class="sub">18,663 unidades</div></div>
+    <div class="card"><div class="lbl">Estrella nueva</div><div class="val" style="font-size:16px">Bowl Granola</div><div class="sub">+119% vs 2025</div><span class="bdg up">↑ nuevo</span></div>
+    <div class="card"><div class="lbl">Mayor caída</div><div class="val" style="font-size:16px">Sand. pastrami</div><div class="sub">-52% vs 2025</div><span class="bdg dn">↓</span></div>
+  </div>
+  <div class="row2">
+    <div class="box"><div class="bt">Ventas por categoría · Q1 2026</div><div class="cw" style="height:230px"><canvas id="c_res_cat"></canvas></div></div>
+    <div class="box"><div class="bt">Distribución por categoría</div>
+      <div style="display:flex;gap:16px;align-items:flex-start">
+        <div class="cw" style="height:200px;flex:1"><canvas id="c_res_dona"></canvas></div>
+        <div id="leg_dona" style="font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:7px;justify-content:center;padding-top:8px;min-width:120px"></div>
+      </div>
+    </div>
+  </div>
+  <div class="box"><div class="bt">Evolución mensual por categoría</div>
+    <div class="lg"><span><span class="dot" style="background:#2d7a4f"></span>Enero</span><span><span class="dot" style="background:#c8841a"></span>Febrero</span><span><span class="dot" style="background:#2563aa"></span>Marzo</span></div>
+    <div class="cw" style="height:240px"><canvas id="c_res_mes"></canvas></div>
+  </div>
+</div>
+
+<!-- PRESUPUESTO -->
+<div class="section" id="tab-ppto">
+  <div class="page-title">Presupuesto</div>
+  <div class="page-sub">Ingresa tu objetivo para ver el progreso real vs meta</div>
+  <div class="box">
+    <div class="bt">Define tu objetivo Q1 2026</div>
+    <p class="btsub">Ventas categorizadas acumuladas Q1 2026 = <strong>$1,237M COP</strong>. Ingresa en millones.</p>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <input class="ppto-input" id="ppI" type="number" placeholder="Ej: 1500" oninput="calcP()">
+      <span style="font-size:13px;color:var(--muted)">millones COP</span>
+    </div>
+    <div class="ppto-grid">
+      <div class="pc"><div class="lbl">Ventas reales Q1</div><div class="val">$1,237M</div><div class="sub">categorizadas</div></div>
+      <div class="pc"><div class="lbl">Presupuesto</div><div class="val" id="pV">—</div><div class="sub">ingresa arriba</div></div>
+      <div class="pc"><div class="lbl">% completado</div><div class="val" id="pPct">—</div><div class="sub" id="pSt">define arriba</div></div>
+      <div class="pc"><div class="lbl">Diferencia</div><div class="val" id="pDf">—</div><div class="sub" id="pDs">vs objetivo</div></div>
+    </div>
+    <div style="font-weight:600;font-size:13px;margin-bottom:5px" id="pLb">Progreso</div>
+    <div class="pb"><div class="pf" id="pBar" style="width:0%;background:var(--accent)"></div></div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:5px"><span>$0</span><span id="pMid">—</span><span id="pMax">—</span></div>
+  </div>
+  <div class="box">
+    <div class="bt">Ventas mensuales vs presupuesto sugerido</div>
+    <div class="btsub">Distribución sugerida: Ene 32% · Feb 32% · Mar 36% (basado en evolución real)</div>
+    <div class="cw" style="height:220px"><canvas id="cPpMes"></canvas></div>
+  </div>
+  <div class="box"><div class="bt">Ventas por tienda · Q1 2026</div><div id="ppTi"></div></div>
+</div>
+
+<!-- MENÚ 2025 VS 2026 -->
+<div class="section" id="tab-menu">
+  <div class="page-title">Menú 2025 vs 2026</div>
+  <div class="page-sub">Comparación Q1 2025 vs Q1 2026 · solo productos categorizados</div>
+  <div class="cards">
+    <div class="card"><div class="lbl">Crecimiento ventas totales</div><div class="val">+44.2%</div><div class="sub">Q1 2026 vs Q1 2025</div><span class="bdg up">↑ $1.5B más</span></div>
+    <div class="card"><div class="lbl">Crecimiento unidades</div><div class="val">+41.5%</div><div class="sub">340K vs 239K</div><span class="bdg up">↑ 101K unid</span></div>
+    <div class="card"><div class="lbl">Productos comunes categ.</div><div class="val">~15</div><div class="sub">en ambos menús</div></div>
+    <div class="card"><div class="lbl">Top crecimiento</div><div class="val" style="font-size:16px">Bowl Granola</div><div class="sub">+119% ventas</div><span class="bdg up">↑ estrella</span></div>
+    <div class="card"><div class="lbl">Mayor caída</div><div class="val" style="font-size:16px">Sand. pastrami</div><div class="sub">-52% ventas</div><span class="bdg dn">↓</span></div>
+  </div>
+  <div class="box">
+    <div class="bt">Top 12 productos categorizados · Q1 2025 vs Q1 2026</div>
+    <div class="lg"><span><span class="dot" style="background:#aaa"></span>Q1 2025</span><span><span class="dot" style="background:#2563aa"></span>Q1 2026</span></div>
+    <div class="cw" style="height:380px"><canvas id="cM1"></canvas></div>
+  </div>
+  <div class="box">
+    <div class="bt">Variación % en ventas · Q1 2026 vs Q1 2025</div>
+    <div class="cw" style="height:300px"><canvas id="cM2"></canvas></div>
+  </div>
+  <div class="box"><div class="bt">Productos con caída vs 2025</div><div id="caidaL"></div></div>
+</div>
+
+<!-- PRODUCTOS NUEVOS -->
+<div class="section" id="tab-nuevos">
+  <div class="page-title">Productos nuevos</div>
+  <div class="page-sub">Productos que aparecen en 2026 y no existían en 2025</div>
+  <div class="cards">
+    <div class="card"><div class="lbl">Nuevos en 2026</div><div class="val">262</div><div class="sub">solo en nuevo menú</div></div>
+    <div class="card"><div class="lbl">Descontinuados</div><div class="val">149</div><div class="sub">salieron del menú</div><span class="bdg warn">retirados</span></div>
+    <div class="card"><div class="lbl">Top nuevo · ventas</div><div class="val" style="font-size:16px">Huevos grat.</div><div class="sub">$120.1M</div><span class="bdg up">#1</span></div>
+    <div class="card"><div class="lbl">Top nuevo · unidades</div><div class="val" style="font-size:16px">Mini pandebono</div><div class="sub">7,109 unid</div></div>
+  </div>
+  <div class="box"><div class="bt">Top 20 productos nuevos · ventas Q1 2026</div><div id="nL"></div></div>
+  <div class="box"><div class="bt">Top 15 descontinuados · ventas Q1 2025</div><div id="dL"></div></div>
+</div>
+
+<!-- CATEGORÍAS -->
+<div class="section" id="tab-cats">
+  <div class="page-title">Categorías</div>
+  <div class="page-sub">7 categorías reales · Q1 2026</div>
+  <div class="box"><div class="bt">Ventas por categoría · Q1 2026</div><div id="catBarsF"></div></div>
+  <div class="row2">
+    <div class="box"><div class="bt">Unidades por categoría</div><div class="cw" style="height:220px"><canvas id="cCU"></canvas></div></div>
+    <div class="box"><div class="bt">Ventas por categoría (dona)</div><div class="cw" style="height:220px"><canvas id="cCatDona2"></canvas></div></div>
+  </div>
+  <div class="box">
+    <div class="bt">Evolución mensual por categoría · Ene / Feb / Mar</div>
+    <div class="lg"><span><span class="dot" style="background:#2d7a4f"></span>Enero</span><span><span class="dot" style="background:#c8841a"></span>Febrero</span><span><span class="dot" style="background:#2563aa"></span>Marzo</span></div>
+    <div class="cw" style="height:260px"><canvas id="cCM2"></canvas></div>
+  </div>
+</div>
+
+<!-- TIENDAS -->
+<div class="section" id="tab-tiendas">
+  <div class="page-title">Tiendas</div>
+  <div class="page-sub">11 puntos de venta · Q1 2026</div>
+  <div class="box"><div class="bt">Ventas por tienda · Q1 2026 (ranking)</div><div id="tiB"></div></div>
+  <div class="box">
+    <div class="bt">Evolución mensual por tienda</div>
+    <div class="lg"><span><span class="dot" style="background:#2d7a4f"></span>Enero</span><span><span class="dot" style="background:#c8841a"></span>Febrero</span><span><span class="dot" style="background:#2563aa"></span>Marzo</span></div>
+    <div class="cw" style="height:380px"><canvas id="cTi"></canvas></div>
+  </div>
+  <div class="box">
+    <div class="bt">Tendencia 2025–2026 · tiendas principales</div>
+    <div class="btsub">Ventas mensuales Ene 2025 – Mar 2026</div>
+    <div class="lg" id="legTend"></div>
+    <div class="cw" style="height:280px"><canvas id="cTend15"></canvas></div>
+  </div>
+</div>
+
+<!-- TOP 10 -->
+<div class="section" id="tab-top10">
+  <div class="page-title">Top 10 productos</div>
+  <div class="page-sub">Solo productos categorizados · Q1 2026</div>
+  <div class="cards">
+    <div class="card"><div class="lbl">Top ventas COP</div><div class="val" style="font-size:16px">Huevos grat.</div><div class="sub">$120.1M</div><span class="bdg up">#1</span></div>
+    <div class="card"><div class="lbl">Top unidades</div><div class="val" style="font-size:16px">Mini pandebono</div><div class="sub">7,109 unid</div><span class="bdg up">#1 vol.</span></div>
+    <div class="card"><div class="lbl">Mayor ticket/unid</div><div class="val" style="font-size:16px">Sand. pollo</div><div class="sub">~$36,381</div><span class="bdg neu">sandwich</span></div>
+    <div class="card"><div class="lbl">Caída más fuerte</div><div class="val" style="font-size:16px">Sand. pastrami</div><div class="sub">-85% Ene→Mar</div><span class="bdg dn">alerta</span></div>
+  </div>
+  <div class="box"><div class="bt">Top 10 · por ventas COP · con tendencia mensual</div><div style="overflow-x:auto"><table class="t10" id="t10c"></table></div></div>
+  <div class="box"><div class="bt">Top 10 · por unidades · con tendencia mensual</div><div style="overflow-x:auto"><table class="t10" id="t10u"></table></div></div>
+</div>
+
+<!-- TENDENCIA -->
+<div class="section" id="tab-tend">
+  <div class="page-title">Tendencia</div>
+  <div class="page-sub">Análisis de comportamiento mensual Q1 2026</div>
+  <div class="box">
+    <div class="bt">Ventas totales por mes · Q1 2026 (todas las tiendas)</div>
+    <div class="cw" style="height:200px"><canvas id="cTnd"></canvas></div>
+    <p style="margin-top:12px;font-size:13px;color:var(--muted)">Las ventas bajaron <strong>$183M (−10.6%)</strong> de enero a marzo. Febrero sostuvo casi el mismo nivel; la caída se concentra en marzo.</p>
+  </div>
+  <div class="box">
+    <div class="bt">Variación % por tienda · Feb vs Ene / Mar vs Feb</div>
+    <div class="cw" style="height:280px"><canvas id="cVar"></canvas></div>
+  </div>
+  <div class="box">
+    <div class="bt">Comportamiento por tienda en marzo vs febrero</div>
+    <div id="tRes" style="font-size:13px;color:var(--muted);line-height:2.2"></div>
+  </div>
+</div>
+
+<!-- TOP POR CATEGORÍA -->
+<div class="section" id="tab-topcat">
+  <div class="page-title">Top productos por categoría</div>
+  <div class="page-sub">Q1 2026 · Ventas, unidades y tendencia mensual por cada categoría</div>
+
+  <!-- Selector -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px" id="catTabs">
+    <button class="cat-btn active" onclick="showCat('Huevos',this)" style="background:var(--C0)">🥚 Huevos</button>
+    <button class="cat-btn" onclick="showCat('Past. dulce',this)" style="background:var(--C1)">🍰 Past. dulce</button>
+    <button class="cat-btn" onclick="showCat('Sandwiches',this)" style="background:var(--C2)">🥪 Sandwiches</button>
+    <button class="cat-btn" onclick="showCat('Tostadas',this)" style="background:var(--C5)">🍞 Tostadas</button>
+    <button class="cat-btn" onclick="showCat('Past. de sal',this)" style="background:var(--C3)">🫓 Past. de sal</button>
+    <button class="cat-btn" onclick="showCat('Desayunos',this)" style="background:var(--C4)">☀️ Desayunos</button>
+    <button class="cat-btn" onclick="showCat('Bowls',this)" style="background:var(--C6)">🥗 Bowls</button>
+  </div>
+
+  <!-- Cat title -->
+  <div id="catPanelTitle" style="font-size:18px;font-weight:700;margin-bottom:16px;color:var(--text)"></div>
+
+  <!-- Summary cards per cat -->
+  <div class="cards" id="catSummaryCards" style="margin-bottom:20px"></div>
+
+  <div class="row2" style="margin-bottom:16px">
+    <div class="box">
+      <div class="bt" id="catChartTitle">Ventas por producto</div>
+      <div class="cw" style="height:240px"><canvas id="cCatProd"></canvas></div>
+    </div>
+    <div class="box">
+      <div class="bt">Unidades por producto</div>
+      <div class="cw" style="height:240px"><canvas id="cCatUnidProd"></canvas></div>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="bt">Evolución mensual · Ene / Feb / Mar</div>
+    <div class="lg"><span><span class="dot" style="background:#2d7a4f"></span>Enero</span><span><span class="dot" style="background:#c8841a"></span>Febrero</span><span><span class="dot" style="background:#2563aa"></span>Marzo</span></div>
+    <div class="cw" style="height:240px"><canvas id="cCatTrend"></canvas></div>
+  </div>
+
+  <div class="box">
+    <div class="bt">Detalle completo</div>
+    <div style="overflow-x:auto"><table class="t10" id="tCatDetail"></table></div>
+  </div>
+</div>
+</main>
+</div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────────
+
+const C=['#2d7a4f','#c8841a','#2563aa','#8b3a8b','#c0392b','#1a7a7a','#8b6914'];
+
+// Categorías
+const cats    = ['Huevos','Past. dulce','Sandwiches','Tostadas','Past. de sal','Desayunos','Bowls'];
+const cTot    = [275276100, 269855300, 154214600, 149194500, 146057000, 126564300, 115825400];
+const cUnid   = [11711, 18663, 4553, 5570, 13895, 5592, 3331];
+const cEne    = [93467610, 85179329, 55202666, 50566163, 52234900, 29909812, 31795196];
+const cFeb    = [98163408, 89955265, 58135952, 53139682, 49431431, 44520747, 39720414];
+const cMar    = [83645119, 94720699, 40875970, 45488697, 44390702, 52133745, 44309802];
+
+// Tiendas (excl. Adidas sin usar)
+const tiNames = ['Zona G','122 B','Calle 93','Calle 109','Calle 85','FIC 48','Calle 79','Getsemaní','Usaquén','Specialized','Adidas'];
+const tiEne   = [253043797, 265635212, 237224580, 211710172, 163901854, 150748029, 143291930, 145541705, 111417469, 30628847, 13710639];
+const tiFeb   = [253990271, 250791464, 235522584, 212274137, 159163421, 150953549, 136542107, 141255590, 108501477, 31963434, 13005257];
+const tiMar   = [239735300, 229285100, 221918100, 187433600, 137753363, 138525800, 149890300, 108855575, 93475777, 27038788, 10323900];
+const tiTot   = tiEne.map((v,i)=>v+tiFeb[i]+tiMar[i]);
+
+// Monthly 15-month trend (Jan25–Mar26) for key stores
+const months15 = ['E25','F25','M25','A25','My25','Jn25','Jl25','Ag25','S25','O25','N25','D25','E26','F26','M26'];
+const trendData = {
+  'Zona G':    [230.35,200.16,242.29,220.89,231.89,220.56,244.12,268.62,223.58,237.84,242.63,235.84,253.04,253.99,239.74],
+  '122 B':     [232.15,220.94,236.55,220.26,256.43,237.97,267.06,272.98,237.27,237.27,236.07,268.09,265.64,250.79,229.29],
+  'Calle 93':  [168.69,173.75,194.99,175.21,214.83,193.90,217.87,243.75,224.28,214.17,234.40,244.59,237.22,235.52,221.95],
+  'Calle 109': [150.76,146.48,174.43,158.81,182.12,176.96,201.34,202.88,185.93,195.46,190.95,213.68,211.71,212.27,187.43],
+  'Calle 85':  [174.13,136.26,174.78,150.98,157.33,118.90,156.64,165.87,155.08,164.95,181.14,172.62,163.90,159.16,137.75],
+};
+
+// Top10 (categorized products)
+const tp = [
+  {n:'Huevos gratinados',   e:1879,f:1845,m:1249,tCOP:120137204,cat:'Huevos'},
+  {n:'Mini pandebono x5',   e:2664,f:2501,m:1944,tCOP:86978680, cat:'Past. de sal'},
+  {n:'Torta almohabana',    e:1581,f:1439,m:1290,tCOP:62627338, cat:'Past. dulce'},
+  {n:'Sand. pollo ciabatta',e:822, f:706, m:124, tCOP:60106253, cat:'Sandwiches'},
+  {n:'Torta volcán choc.',  e:1353,f:1334,m:1197,tCOP:56530548, cat:'Past. dulce'},
+  {n:'Tostada salmón',      e:545, f:530, m:419, tCOP:48740584, cat:'Tostadas'},
+  {n:'Cac. huevos pastrami',e:1278,f:773, m:7,   tCOP:47734320, cat:'Huevos'},
+  {n:'Bowl granola',        e:714, f:693, m:495, tCOP:44588641, cat:'Desayunos'},
+  {n:'Bowl salmón ahumado', e:379, f:387, m:363, tCOP:43890204, cat:'Bowls'},
+  {n:'Tostada aguacate',    e:577, f:573, m:449, tCOP:37946659, cat:'Tostadas'},
+  {n:'Bowl de pollo',       e:365, f:432, m:478, tCOP:40908260, cat:'Bowls'},
+  {n:'Croissant avellanas', e:850, f:767, m:611, tCOP:33205750, cat:'Past. dulce'},
+  {n:'Palito de queso',     e:1226,f:1126,m:838, tCOP:28953499, cat:'Past. de sal'},
+  {n:'Waffle de avena',     e:525, f:508, m:343, tCOP:35457654, cat:'Desayunos'},
+  {n:'Tostada capresse',    e:354, f:468, m:444, tCOP:29418544, cat:'Tostadas'},
+];
+const byV = [...tp].sort((a,b)=>b.tCOP-a.tCOP).slice(0,10);
+const byU = [...tp].sort((a,b)=>(b.e+b.f+b.m)-(a.e+a.f+a.m)).slice(0,10);
+
+// 2025 vs 2026 (categorized, common)
+const m26 = [
+  {n:'Torta almohabana',    v25:51945665, v26:62627338},
+  {n:'Sand. pollo ciabatta',v25:59619420, v26:60106253},
+  {n:'Torta volcán choc.',  v25:39938470, v26:56530548},
+  {n:'Tostada salmón',      v25:59779211, v26:48740584},
+  {n:'Bowl granola',        v25:20332450, v26:44588641},
+  {n:'Bowl salmón ahumado', v25:36272800, v26:43890204},
+  {n:'Tostada aguacate',    v25:36036575, v26:37946659},
+  {n:'Waffle de avena',     v25:18657254, v26:35457654},
+  {n:'Torta zanahoria',     v25:32094825, v26:32855926},
+  {n:'Tostada capresse',    v25:20046900, v26:29418544},
+  {n:'Palito de queso',     v25:14690130, v26:28953499},
+  {n:'Sand. pastrami',      v25:57064860, v26:27392806},
+];
+
+// Nuevos y descontinuados
+const nv = [
+  {n:'Huevos gratinados',   v:120137204},{n:'Mini pandebono x5',   v:86978680},
+  {n:'Kit Lovers Rock Java',v:56980930}, {n:'PAZ 340G grano',      v:51987840},
+  {n:'Bebida Autor Esencia',v:51499840}, {n:'Rock Java 454G',      v:51336170},
+  {n:'Bebida Timo',         v:49225680}, {n:'Cac. huevos pastrami',v:47734320},
+  {n:'Bowl de pollo',       v:40908260}, {n:'Rock Java 340G',      v:37984650},
+  {n:'Cac. huevos sal.verde',v:37053680},{n:'Cac. huevos turcos',  v:36009600},
+  {n:'Libre 340G grano',    v:34858180}, {n:'Cac. huevos criollos',v:34341330},
+  {n:'Torta vasca',         v:33895540}, {n:'Croissant avellanas',  v:33205750},
+  {n:'Tostada jamón serrano',v:33088750},{n:'Lata Cold Brew 269ml',v:30745760},
+  {n:'Bebida Autor Lumina', v:30465140}, {n:'B. Papayo 340G',      v:29238850},
+];
+const dc = [
+  {n:'Kit Lovers Chiroso',      v:46344615},{n:'Tost. Maraño. Jam. Ser.', v:42908350},
+  {n:'Canasta pandebono x5',    v:40343415},{n:'Caturra Chiroso 454G',    v:39540700},
+  {n:'Canasta pandebono x10',   v:25423085},{n:'B. Rosado Palma Tucán',   v:21120750},
+  {n:'Waffle de choclo',        v:20668125},{n:'Tostada pavo durazno',    v:18995700},
+  {n:'Bowl de acaí',            v:18561300},{n:'Sandwich aguacate',       v:16574775},
+  {n:'Competition 100G',        v:14641750},{n:'Caturra Chiroso 200G',    v:11165400},
+  {n:'Black Latte Lachis',      v:10284725},{n:'PAZ Cápsulas x10',        v:10072500},
+  {n:'Cappuccino Caturra desc.',v:9589625},
+];
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+const fm  = v => '$'+(v/1e6).toFixed(1)+'M';
+const fmB = v => v>=1e9?'$'+(v/1e9).toFixed(2)+'B':'$'+(v/1e6).toFixed(0)+'M';
+const gc  = isDark => isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.07)';
+const tc  = isDark => isDark?'#999':'#6b6860';
+const GR  = 'rgba(0,0,0,0.07)';
+const TC  = '#6b6860';
+
+function go(id,el){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  el.classList.add('active');
+}
+
+function mkBar(containerId, labels, values, colors, fmt){
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  const mx = Math.max(...values);
+  labels.forEach((n,i)=>{
+    const r=document.createElement('div'); r.className='br';
+    r.innerHTML=`<span class="bn" title="${n}">${n}</span><div class="bb"><div class="bf" style="width:${Math.round(values[i]/mx*100)}%;background:${Array.isArray(colors)?colors[i%colors.length]:colors}"></div></div><span class="bv">${fmt(values[i])}</span>`;
+    el.appendChild(r);
+  });
+}
+
+function mk(id,cfg){
+  const el=document.getElementById(id);
+  if(!el)return null;
+  return new Chart(el,cfg);
+}
+const baseOpts = {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
+const scaleY = (cb) => ({y:{ticks:{color:TC,callback:cb},grid:{color:GR}},x:{ticks:{color:TC},grid:{display:false}}});
+const scaleXY = {x:{ticks:{color:TC,font:{size:11}},grid:{display:false}},y:{ticks:{color:TC},grid:{color:GR}}};
+
+// ── BUILD DOM ────────────────────────────────────────────────────────────────
+
+// Cat legend dona
+const totC=cTot.reduce((a,b)=>a+b,0);
+document.getElementById('leg_dona').innerHTML=cats.map((n,i)=>`<div style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:2px;background:${C[i]};flex-shrink:0"></span><span>${n}</span><span style="margin-left:auto;font-weight:700;font-size:11px">${Math.round(cTot[i]/totC*100)}%</span></div>`).join('');
+
+// Cat bars full
+mkBar('catBarsF', cats, cTot, C, fm);
+
+// Tiendas bars
+const sortedTi = tiTot.map((v,i)=>[i,v]).sort((a,b)=>b[1]-a[1]);
+const tiB = document.getElementById('tiB');
+const ppTi = document.getElementById('ppTi');
+sortedTi.forEach(([i,v])=>{
+  [tiB, ppTi].forEach(el=>{
+    if(!el) return;
+    const r=document.createElement('div'); r.className='br';
+    r.innerHTML=`<span class="bn">${tiNames[i]}</span><div class="bb"><div class="bf" style="width:${Math.round(v/tiTot[0]*100)}%;background:${C[i%C.length]}"></div></div><span class="bv">${fm(v)}</span>`;
+    el.appendChild(r);
+  });
+});
+
+// Nuevos bars
+mkBar('nL', nv.map(p=>p.n), nv.map(p=>p.v), C, fm);
+// Disc bars
+mkBar('dL', dc.map(p=>p.n), dc.map(p=>p.v), '#999', fm);
+
+// Caída list
+const caidaEl=document.getElementById('caidaL');
+m26.filter(p=>p.v26<p.v25).sort((a,b)=>((a.v26-a.v25)/a.v25)-((b.v26-b.v25)/b.v25)).forEach(p=>{
+  const pct=((p.v26-p.v25)/p.v25*100).toFixed(1);
+  const r=document.createElement('div');r.className='br';
+  r.innerHTML=`<span class="bn" style="color:var(--red)">${p.n}</span><span style="font-size:12px;color:var(--red);min-width:48px;font-weight:600">${pct}%</span><span class="bv">${fm(p.v25)} → ${fm(p.v26)}</span>`;
+  caidaEl.appendChild(r);
+});
+
+// Tendencia tiendas
+document.getElementById('tRes').innerHTML=[...tiNames.map((_,i)=>({t:tiNames[i],v:+((tiMar[i]-tiFeb[i])/tiFeb[i]*100).toFixed(1)}))].sort((a,b)=>b.v-a.v).map(x=>`<div>${x.v>=0?'↑':'↓'} <strong>${x.t}</strong>: ${x.v>0?'+':''}${x.v}% — marzo vs febrero</div>`).join('');
+
+// Legend tend15
+const tNames=Object.keys(trendData);
+document.getElementById('legTend').innerHTML=tNames.map((n,i)=>`<span><span class="dot" style="background:${C[i]}"></span>${n}</span>`).join('');
+
+// Top10 tables
+const catColor={'Huevos':C[0],'Past. de sal':C[3],'Desayunos':C[4],'Past. dulce':C[1],'Sandwiches':C[2],'Tostadas':C[5],'Bowls':C[6]};
+function buildT(id,items,isCOP){
+  const tbl=document.getElementById(id);
+  tbl.innerHTML=`<thead><tr><th>#</th><th>Producto</th><th class="r">Ene</th><th class="r">Feb</th><th class="r">Mar</th><th class="r">Total Q1</th><th class="r">Var Mar/Ene</th><th>Trend</th></tr></thead>`;
+  const tb=document.createElement('tbody');
+  items.forEach((p,i)=>{
+    const tv=p.e+p.f+p.m;
+    const vp=Math.round((p.m-p.e)/p.e*100);
+    const vc=vp>=0?'var(--green)':'var(--red)';
+    const ms=Math.max(p.e,p.f,p.m);
+    const spark=[p.e,p.f,p.m].map((v,si)=>`<div class="sb" style="height:${Math.max(3,Math.round(v/ms*22))}px;background:${[C[0],C[1],C[2]][si]}"></div>`).join('');
+    const fmt=isCOP?v=>fm(Math.round(p.tCOP*(v/tv))):v=>v.toLocaleString('es-CO');
+    const cc=catColor[p.cat]||'#888';
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;background:${C[i%C.length]}22;color:${C[i%C.length]}">${i+1}</span></td>
+      <td>${p.n}<span class="pill" style="background:${cc}18;color:${cc}">${p.cat}</span></td>
+      <td class="r">${fmt(p.e)}</td><td class="r">${fmt(p.f)}</td><td class="r">${fmt(p.m)}</td>
+      <td class="r" style="font-weight:700">${isCOP?fm(p.tCOP):tv.toLocaleString('es-CO')}</td>
+      <td class="r" style="color:${vc};font-weight:700">${vp>0?'+':''}${vp}%</td>
+      <td><div class="sp">${spark}</div></td>`;
+    tb.appendChild(tr);
+  });
+  tbl.appendChild(tb);
+}
+buildT('t10c',byV,true);
+buildT('t10u',byU,false);
+
+// Presupuesto
+let ppC=null;
+function calcP(){
+  const raw=parseFloat(document.getElementById('ppI').value);
+  if(isNaN(raw)||raw<=0){['pV','pPct','pDf'].forEach(id=>document.getElementById(id).textContent='—');document.getElementById('pBar').style.width='0%';return;}
+  const obj=raw*1e6,real=1236987200,pct=Math.min(real/obj*100,200),df=real-obj;
+  document.getElementById('pV').textContent='$'+(raw>=1000?(raw/1000).toFixed(1)+'B':raw.toFixed(0)+'M');
+  document.getElementById('pPct').textContent=pct.toFixed(1)+'%';
+  document.getElementById('pSt').textContent=pct>=100?'✓ meta alcanzada':'en progreso';
+  document.getElementById('pDf').textContent=(df>=0?'+':'')+fm(Math.abs(df));
+  document.getElementById('pDs').textContent=df>=0?'sobre objetivo':'por debajo';
+  document.getElementById('pBar').style.width=Math.min(pct,100)+'%';
+  document.getElementById('pBar').style.background=pct>=100?'var(--green)':'var(--accent)';
+  document.getElementById('pLb').textContent=`Progreso: ${pct.toFixed(1)}%`;
+  document.getElementById('pMid').textContent='$'+(raw/2).toFixed(0)+'M';
+  document.getElementById('pMax').textContent='$'+raw.toFixed(0)+'M';
+  if(ppC){
+    ppC.data.datasets[1].data=[Math.round(obj*.32),Math.round(obj*.32),Math.round(obj*.36)];
+    ppC.update();
+  }
+}
+
+// ── CHARTS ───────────────────────────────────────────────────────────────────
+
+mk('c_res_cat',{type:'bar',data:{labels:cats,datasets:[{data:cTot,backgroundColor:C,borderRadius:5}]},options:{...baseOpts,scales:{x:{ticks:{color:TC,font:{size:11},maxRotation:20},grid:{display:false}},y:{ticks:{color:TC,callback:v=>'$'+(v/1e6).toFixed(0)+'M'},grid:{color:GR}}}}});
+
+mk('c_res_dona',{type:'doughnut',data:{labels:cats,datasets:[{data:cTot,backgroundColor:C,borderWidth:0}]},options:{...baseOpts,cutout:'60%'}});
+
+const catMesCfg = id => mk(id,{type:'bar',data:{labels:cats,datasets:[
+  {label:'Enero',  data:cEne,backgroundColor:'rgba(45,122,79,.85)',borderRadius:3},
+  {label:'Febrero',data:cFeb,backgroundColor:'rgba(200,132,26,.85)',borderRadius:3},
+  {label:'Marzo',  data:cMar,backgroundColor:'rgba(37,99,170,.85)',borderRadius:3}
+]},options:{...baseOpts,plugins:{legend:{display:true,labels:{color:TC,font:{size:11},boxWidth:10}}},scales:{x:{ticks:{color:TC,font:{size:11},maxRotation:20},grid:{display:false}},y:{ticks:{color:TC,callback:v=>'$'+(v/1e6).toFixed(0)+'M'},grid:{color:GR}}}}});
+catMesCfg('c_res_mes'); catMesCfg('cCM2');
+
+mk('cCU',{type:'bar',data:{labels:cats,datasets:[{data:cUnid,backgroundColor:C,borderRadius:5}]},options:{...baseOpts,scales:{x:{ticks:{color:TC,font:{size:11},maxRotation:20},grid:{display:false}},y:{ticks:{color:TC},grid:{color:GR}}}}});
+
+mk('cCatDona2',{type:'doughnut',data:{labels:cats,datasets:[{data:cTot,backgroundColor:C,borderWidth:0}]},options:{...baseOpts,cutout:'55%',plugins:{legend:{display:true,position:'right',labels:{color:TC,font:{size:10},boxWidth:10}}}}});
+
+ppC=mk('cPpMes',{type:'bar',data:{labels:['Enero','Febrero','Marzo'],datasets:[
+  {label:'Ventas reales',data:[cEne.reduce((a,b)=>a+b),cFeb.reduce((a,b)=>a+b),cMar.reduce((a,b)=>a+b)],backgroundColor:'rgba(45,122,79,.85)',borderRadius:5},
+  {label:'Presupuesto',  data:[0,0,0],backgroundColor:'rgba(200,132,26,.4)',borderRadius:5}
+]},options:{...baseOpts,plugins:{legend:{display:true,labels:{color:TC,font:{size:11},boxWidth:10}}},scales:{x:{ticks:{color:TC},grid:{display:false}},y:{ticks:{color:TC,callback:v=>'$'+(v/1e6).toFixed(0)+'M'},grid:{color:GR}}}}});
+
+mk('cTi',{type:'bar',data:{labels:tiNames,datasets:[
+  {label:'Enero',  data:tiEne,backgroundColor:'rgba(45,122,79,.85)',borderRadius:3},
+  {label:'Febrero',data:tiFeb,backgroundColor:'rgba(200,132,26,.85)',borderRadius:3},
+  {label:'Marzo',  data:tiMar,backgroundColor:'rgba(37,99,170,.85)',borderRadius:3}
+]},options:{...baseOpts,indexAxis:'y',plugins:{legend:{display:true,labels:{color:TC,font:{size:11},boxWidth:10}}},scales:{
+  x:{ticks:{color:TC,font:{size:11},callback:v=>'$'+(v/1e6).toFixed(0)+'M'},grid:{color:GR}},
+  y:{ticks:{color:TC,font:{size:11}},grid:{display:false}}
+}}});
+
+mk('cTend15',{type:'line',data:{labels:months15,datasets:tNames.map((n,i)=>({label:n,data:trendData[n],borderColor:C[i],backgroundColor:'transparent',tension:.35,pointRadius:2,borderWidth:2}))},options:{...baseOpts,plugins:{legend:{display:false}},scales:{x:{ticks:{color:TC,font:{size:10}},grid:{color:GR}},y:{ticks:{color:TC,callback:v=>'$'+v+'M'},grid:{color:GR}}}}});
+
+const mn=m26.map(p=>p.n);
+mk('cM1',{type:'bar',data:{labels:mn,datasets:[
+  {label:'Q1 2025',data:m26.map(p=>p.v25),backgroundColor:'rgba(150,150,150,.6)',borderRadius:3},
+  {label:'Q1 2026',data:m26.map(p=>p.v26),backgroundColor:'rgba(37,99,170,.85)',borderRadius:3}
+]},options:{...baseOpts,indexAxis:'y',plugins:{legend:{display:true,labels:{color:TC,font:{size:11},boxWidth:10}}},scales:{
+  x:{ticks:{color:TC,font:{size:11},callback:v=>'$'+(v/1e6).toFixed(0)+'M'},grid:{color:GR}},
+  y:{ticks:{color:TC,font:{size:11}},grid:{display:false}}
+}}});
+
+const vd=m26.map(p=>+((p.v26-p.v25)/p.v25*100).toFixed(1));
+mk('cM2',{type:'bar',data:{labels:mn,datasets:[{data:vd,backgroundColor:vd.map(v=>v>=0?'rgba(45,122,79,.8)':'rgba(192,57,43,.8)'),borderRadius:3}]},options:{...baseOpts,indexAxis:'y',scales:{
+  x:{ticks:{color:TC,callback:v=>v+'%'},grid:{color:GR}},
+  y:{ticks:{color:TC,font:{size:11}},grid:{display:false}}
+}}});
+
+mk('cTnd',{type:'line',data:{labels:['Enero 2026','Febrero 2026','Marzo 2026'],datasets:[{data:[tiEne.reduce((a,b)=>a+b),tiFeb.reduce((a,b)=>a+b),tiMar.reduce((a,b)=>a+b)],borderColor:C[0],backgroundColor:'rgba(45,122,79,.1)',fill:true,tension:.3,pointRadius:7,pointBackgroundColor:C[0],borderWidth:2.5}]},options:{...baseOpts,scales:{x:{ticks:{color:TC},grid:{color:GR}},y:{ticks:{color:TC,callback:v=>'$'+(v/1e9).toFixed(2)+'B'},grid:{color:GR}}}}});
+
+const vF=tiNames.map((_,i)=>+((tiFeb[i]-tiEne[i])/tiEne[i]*100).toFixed(1));
+const vM=tiNames.map((_,i)=>+((tiMar[i]-tiFeb[i])/tiFeb[i]*100).toFixed(1));
+mk('cVar',{type:'bar',data:{labels:tiNames,datasets:[
+  {label:'Feb vs Ene',data:vF,backgroundColor:vF.map(v=>v>=0?'rgba(45,122,79,.8)':'rgba(192,57,43,.8)'),borderRadius:3},
+  {label:'Mar vs Feb',data:vM,backgroundColor:vM.map(v=>v>=0?'rgba(37,99,170,.8)':'rgba(192,57,43,.8)'),borderRadius:3}
+]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:TC,font:{size:11},boxWidth:10}}},scales:{
+  x:{ticks:{color:TC,font:{size:11},maxRotation:35},grid:{display:false}},
+  y:{ticks:{color:TC,callback:v=>v+'%'},grid:{color:GR}}
+}}});
+
+// ── TOP POR CATEGORÍA ─────────────────────────────────────────────────────────
+const catData = {
+  'Huevos': { color:'#2d7a4f', total:275276100, unid:11711, prods:[
+    {n:'Cacerola Huevos Gratinados', e:1879,f:1845,m:1249,vTot:120137204},
+    {n:'Cac. H. Con Pastrami',       e:1278,f:773, m:7,   vTot:47734320},
+    {n:'Cac. H. Salsa Verde',        e:0,   f:498, m:1003,vTot:37053680},
+    {n:'Cacerola Huevos Turcos',     e:0,   f:428, m:1034,vTot:36009600},
+    {n:'Cacerola Huevos Criollos',   e:986, f:649, m:82,  vTot:34341330},
+  ]},
+  'Past. dulce': { color:'#c8841a', total:269855300, unid:18663, prods:[
+    {n:'Torta De Almohabana',        e:1581,f:1439,m:1290,vTot:62627338},
+    {n:'Torta Volcán De Chocolate',  e:1353,f:1334,m:1197,vTot:56530548},
+    {n:'Croissant Con Avellanas',    e:850, f:767, m:611, vTot:33205750},
+    {n:'Torta De Zanahoria',         e:853, f:769, m:643, vTot:32855926},
+    {n:'Torta De Manzana',           e:1014,f:487, m:43,  vTot:23885241},
+    {n:'Cheesecake De Agraz',        e:0,   f:297, m:615, vTot:15400000},
+  ]},
+  'Sandwiches': { color:'#2563aa', total:154214600, unid:4553, prods:[
+    {n:'Sand. Pollo Pan Ciabatta',   e:822, f:706, m:124, vTot:60106253},
+    {n:'Sandwich De Pastrami',       e:564, f:298, m:0,   vTot:27392806},
+    {n:'Sand. Pollo Focaccia',       e:0,   f:197, m:450, vTot:23300000},
+    {n:'Sand. Quesos Ciabatta',      e:266, f:249, m:38,  vTot:15993292},
+    {n:'Sand. Jamón Ser. Focaccia',  e:0,   f:91,  m:233, vTot:10900000},
+    {n:'Sand. Quesos Focaccia',      e:0,   f:82,  m:160, vTot:7100000},
+  ]},
+  'Tostadas': { color:'#1a7a7a', total:149194500, unid:5570, prods:[
+    {n:'Tostada De Salmón',          e:545, f:530, m:419, vTot:48740584},
+    {n:'Tostada Aguacate',           e:577, f:573, m:449, vTot:37946659},
+    {n:'Tostada De Jamón Serrano',   e:418, f:415, m:378, vTot:33088750},
+    {n:'Tostada Capresse',           e:354, f:468, m:444, vTot:29418544},
+  ]},
+  'Past. de sal': { color:'#8b3a8b', total:146057000, unid:13895, prods:[
+    {n:'Mini Pandebono X5',          e:2664,f:2501,m:1944,vTot:86978680},
+    {n:'Palito De Queso',            e:1226,f:1126,m:838, vTot:28953499},
+    {n:'Arepa De Yuca',              e:1286,f:1068,m:774, vTot:23666451},
+    {n:'Mini Arepas De Yuca X5',     e:2,   f:46,  m:420, vTot:6500000},
+  ]},
+  'Desayunos': { color:'#c0392b', total:126564300, unid:5592, prods:[
+    {n:'Bowl Granola',               e:714, f:693, m:495, vTot:44588641},
+    {n:'Waffle De Avena',            e:525, f:508, m:343, vTot:35457654},
+    {n:'Tostadas Francesas',         e:0,   f:249, m:522, vTot:17200000},
+    {n:'Parfait Frutos Rojos',       e:0,   f:187, m:407, vTot:11100000},
+    {n:'Pudín De Chía',              e:0,   f:190, m:355, vTot:10700000},
+    {n:'Parfait Frutos Amarillos',   e:0,   f:126, m:278, vTot:7500000},
+  ]},
+  'Bowls': { color:'#8b6914', total:115825400, unid:3331, prods:[
+    {n:'Bowl De Salmón Ahumado',     e:379, f:387, m:363, vTot:43890204},
+    {n:'Bowl De Pollo',              e:365, f:432, m:478, vTot:40908260},
+    {n:'Bowl De Jamón Serrano',      e:0,   f:150, m:316, vTot:16200000},
+    {n:'Bowl Vegetariano Lentejas',  e:180, f:178, m:103, vTot:14800000},
+  ]},
+};
+
+let chartCatProd=null,chartCatUnid=null,chartCatTrend=null;
+function showCat(catName,btn){
+  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const d=catData[catName]; if(!d)return;
+  document.getElementById('catPanelTitle').textContent=catName+' — Q1 2026';
+  const topProd=d.prods[0];
+  const topVar=topProd.e>0?Math.round((topProd.m-topProd.e)/topProd.e*100):(topProd.m>0?100:0);
+  document.getElementById('catSummaryCards').innerHTML=`
+    <div class="card"><div class="lbl">Ventas totales cat.</div><div class="val" style="font-size:19px">$${(d.total/1e6).toFixed(1)}M</div><div class="sub">Q1 2026</div></div>
+    <div class="card"><div class="lbl">Unidades totales</div><div class="val" style="font-size:19px">${d.unid.toLocaleString('es-CO')}</div><div class="sub">vendidas</div></div>
+    <div class="card"><div class="lbl">Ticket prom.</div><div class="val" style="font-size:19px">$${Math.round(d.total/d.unid).toLocaleString('es-CO')}</div><div class="sub">por unidad</div></div>
+    <div class="card"><div class="lbl">Producto #1</div><div class="val" style="font-size:13px">${topProd.n}</div><div class="sub">$${(topProd.vTot/1e6).toFixed(1)}M</div><span class="bdg ${topVar>=0?'up':'dn'}">${topVar>0?'+':''}${topVar}% Ene→Mar</span></div>
+    <div class="card"><div class="lbl">Productos</div><div class="val" style="font-size:19px">${d.prods.length}</div><div class="sub">en esta categoría</div></div>`;
+  const labels=d.prods.map(p=>p.n),ventas=d.prods.map(p=>p.vTot),unids=d.prods.map(p=>p.e+p.f+p.m);
+  const barC=d.prods.map((_,i)=>i===0?d.color:d.color+'99');
+  if(chartCatProd){chartCatProd.destroy();chartCatProd=null;}
+  if(chartCatUnid){chartCatUnid.destroy();chartCatUnid=null;}
+  if(chartCatTrend){chartCatTrend.destroy();chartCatTrend=null;}
+  chartCatProd=new Chart(document.getElementById('cCatProd'),{type:'bar',data:{labels,datasets:[{data:ventas,backgroundColor:barC,borderRadius:5}]},options:{...baseOpts,indexAxis:'y',scales:{x:{ticks:{color:TC,font:{size:10},callback:v=>'$'+(v/1e6).toFixed(0)+'M'},grid:{color:GR}},y:{ticks:{color:TC,font:{size:10}},grid:{display:false}}}}});
+  chartCatUnid=new Chart(document.getElementById('cCatUnidProd'),{type:'bar',data:{labels,datasets:[{data:unids,backgroundColor:barC,borderRadius:5}]},options:{...baseOpts,indexAxis:'y',scales:{x:{ticks:{color:TC},grid:{color:GR}},y:{ticks:{color:TC,font:{size:10}},grid:{display:false}}}}});
+  chartCatTrend=new Chart(document.getElementById('cCatTrend'),{type:'bar',data:{labels,datasets:[
+    {label:'Enero',  data:d.prods.map(p=>p.e),backgroundColor:'rgba(45,122,79,.85)',borderRadius:3},
+    {label:'Febrero',data:d.prods.map(p=>p.f),backgroundColor:'rgba(200,132,26,.85)',borderRadius:3},
+    {label:'Marzo',  data:d.prods.map(p=>p.m),backgroundColor:'rgba(37,99,170,.85)',borderRadius:3},
+  ]},options:{...baseOpts,indexAxis:'y',plugins:{legend:{display:true,labels:{color:TC,font:{size:11},boxWidth:10}}},scales:{x:{ticks:{color:TC},grid:{color:GR}},y:{ticks:{color:TC,font:{size:10}},grid:{display:false}}}}});
+  const tbl=document.getElementById('tCatDetail');
+  tbl.innerHTML=`<thead><tr><th>#</th><th>Producto</th><th class="r">Ene</th><th class="r">Feb</th><th class="r">Mar</th><th class="r">Total unid</th><th class="r">Ventas Q1</th><th class="r">Ticket/unid</th><th class="r">Var Mar/Ene</th><th>Trend</th></tr></thead>`;
+  const tb=document.createElement('tbody');
+  d.prods.forEach((p,i)=>{
+    const tu=p.e+p.f+p.m,vp=p.e>0?Math.round((p.m-p.e)/p.e*100):(p.m>0?100:0);
+    const vc=vp>=0?'var(--green)':'var(--red)',ms=Math.max(p.e,p.f,p.m,1);
+    const spark=[p.e,p.f,p.m].map((v,si)=>`<div class="sb" style="height:${Math.max(3,Math.round(v/ms*22))}px;background:${[C[0],C[1],C[2]][si]}"></div>`).join('');
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;background:${d.color}22;color:${d.color}">${i+1}</span></td>
+      <td style="font-weight:${i===0?'600':'400'}">${p.n}</td>
+      <td class="r">${p.e.toLocaleString('es-CO')}</td><td class="r">${p.f.toLocaleString('es-CO')}</td><td class="r">${p.m.toLocaleString('es-CO')}</td>
+      <td class="r" style="font-weight:600">${tu.toLocaleString('es-CO')}</td>
+      <td class="r" style="font-weight:600">${fm(p.vTot)}</td>
+      <td class="r">${tu>0?'$'+Math.round(p.vTot/tu).toLocaleString('es-CO'):'—'}</td>
+      <td class="r" style="color:${vc};font-weight:700">${vp>0?'+':''}${vp}%</td>
+      <td><div class="sp">${spark}</div></td>`;
+    tb.appendChild(tr);
+  });
+  tbl.appendChild(tb);
+}
+showCat('Huevos', document.querySelector('.cat-btn'));
+</script>
+</body>
+</html>
